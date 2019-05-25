@@ -28,7 +28,7 @@ if __name__ == "__main__":
     learning_rate = 1e-3
 
     train_dataset = dsets.MNIST(root='./mnist', train=True, transform=transforms.ToTensor(), download=True)
-    test_dataset = dsets.MNIST(root='./mnist', train=False, transform=transforms.ToTensor(), download=False)
+    test_dataset = dsets.MNIST(root='./mnist', train=False, transform=transforms.ToTensor(), download=True)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                batch_size=batch_size,

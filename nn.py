@@ -209,11 +209,11 @@ if __name__ == "__main__":
             image = Variable(image.view(1, 28*28))
             label = label.item() 
             loss = tree.train(image, label, model)
-            vloss = loss.item()
-            loss.backward(retain_graph = True) 
+            loss.backward(retain_graph=True) 
             optimizer.step()
         
-            print('current loss = %.5f' % vloss)
+            vloss = loss.data
+            print('cur loss = %.5f' % vloss)
 
 
     total = 0

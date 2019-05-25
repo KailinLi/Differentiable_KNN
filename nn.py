@@ -133,6 +133,7 @@ class Tree:
         for i in range(len(path)):
             iter = path[i]
             index = indexes[i]
+            assert(index < len(iter.childs))
             logits = None
             for child in iter.childs:
                 dis = -torch.dist(child.out, the_y)

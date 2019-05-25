@@ -36,12 +36,12 @@ class Node:
         self.label = label 
         self.childs = []    
         self.out = out
-        self.child_data = torch.Tensor(0, 100)
+        # self.child_data = torch.Tensor(0, 100)
 
     def append(self, x):
         assert(x.label != self.label)
         self.childs.append(x)
-        self.child_data = torch.cat((self.child_data, x.out), 0)
+        # self.child_data = torch.cat((self.child_data, x.out), 0)
         
 class Tree: 
     def __init__(self):
@@ -109,6 +109,7 @@ class Tree:
 
         # final use multihot
         # construct tensor 
+        assert(final_iter != None)
         loss = 0
         mask = [the_label == child.label for child in final_iter.childs]
         if len(mask) == 0:
@@ -116,16 +117,33 @@ class Tree:
         else:
             mask = torch.tensor(mask, dtype=torch.float) 
             mask = Variable(mask)
-            print(mask)
-            prob = torch.nn.Softmax(-1)(-torch.dist(final_iter.child_data, the_y))
-            print(prob)
+            # print(mask)
+            logits = None
+            for child in final_iter.childs:
+                dis = -torch.dist(child.out, the_y)
+                # print(dis)
+                if logits is None:
+                    logits = dis.view(1)
+                else:
+                    logits = torch.cat((logits, dis.view(1)), 0)
+            prob = nn.Softmax(0)(logits)
+            # print(prob)
             loss = torch.log(torch.dot(prob, mask))
+
         for i in range(len(path)):
             iter = path[i]
             index = indexes[i]
-            loss = loss + nn.CrossEntropyLoss(-1)(-torch.dist(iter.child_data, the_y), index) 
-
-         
+            logits = None
+            for child in iter.childs:
+                dis = -torch.dist(child.out, the_y)
+                print(dis)
+                if logits is None:
+                    logits = dis.view(1)
+                else:
+                    logits = torch.cat((logits, dis.view(1)), 0)
+            loss = loss + criterion(logits.view(1, -1), torch.LongTensor([index]))
+        return loss  
+        
     
         
 
@@ -152,7 +170,7 @@ if __name__ == "__main__":
 
     model = Network(input_size, hidden_size, num_classes)
 
-    learning_rate = 1e-3
+    learning_rate = 1e-5
     num_epoches = 5
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -184,10 +202,18 @@ if __name__ == "__main__":
     
         # optimize tree 
         for i, (image, label) in enumerate(train_loader):
+            if i > 10000:
+                break
+
+            optimizer.zero_grad()
             image = Variable(image.view(1, 28*28))
             label = label.item() 
-            tree.train(image, label, model)
+            loss = tree.train(image, label, model)
+            vloss = loss.item()
+            loss.backward(retain_graph = True) 
+            optimizer.step()
         
+            print('current loss = %.5f' % vloss)
 
 
     total = 0

@@ -10,29 +10,123 @@ class Network(nn.Module):
     def __init__(self, input_num, hidden_size, out_put):
         super(Network, self).__init__()
         self.fc1 = nn.Linear(input_num, hidden_size)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(hidden_size, out_put)
+        self.relu1 = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.relu2 = nn.ReLU()
+        self.fc3 = nn.Linear(hidden_size, out_put)
+        
 
     def forward(self, x):
+        out = self.tree_forward(x)
+        out = self.relu2(out)
+        out = self.fc3(out)
+        return out
+
+    def tree_forward(self, x):
         out = self.fc1(x)
-        out = self.relu(out)
+        out = self.relu1(out)
         out = self.fc2(out)
         return out
 
+criterion = nn.CrossEntropyLoss()
+
+class Node:
+    def __init__(self, label:int, out):
+        self.label = label 
+        self.childs = []    
+        self.out = out
+        self.child_data = torch.Tensor(0, 100)
+
+    def append(self, x):
+        assert(x.label != self.label)
+        self.childs.append(x)
+        self.child_data = torch.cat((self.child_data, x.out), 0)
+        
+class Tree: 
+    def __init__(self):
+        self.size = 0
+        self.root = None
+
+    def insert(self, the_data:torch.Tensor, the_label:int, net:Network):
+        # set net as test mode
+        # assert(net.training == False)
+
+        net.train(False)
+        the_y = net.tree_forward(the_data) 
+        if self.root == None:
+            self.root = Node(the_label, the_y)
+            self.size += 1
+            return 
+
+        iter = self.root
+        min_value = torch.dist(the_y, iter.out).item()
+        # print(min_value)
+        while True: 
+            min_node = iter
+            for child in iter.childs:
+                value = torch.dist(the_y, child.out).item()
+                if value < min_value:
+                    min_value = value
+                    min_node = child
+                    # print(min_value)
+
+            if min_node == iter:
+                if iter.label == the_label:
+                    # hit
+                    return
+                else:
+                    iter.append(Node(the_label, the_y))
+                    self.size += 1
+                    return
+            iter = min_node 
+
+    def train(self, the_data, the_label, net:Network):
+        loss = 0 
+        net.train(True)
+        the_y = net.tree_forward(the_data)
+        iter = self.root
+        min_value = torch.dist(the_y, iter.out).item()
+        # print(min_value)
+        while True: 
+            min_node = iter
+            for child in iter.childs:
+                value = torch.dist(the_y, child.out).item()
+                if value < min_value:
+                    min_value = value
+                    min_node = child
+                    # print(min_value)
+
+            if min_node == iter:
+                if iter.label == the_label:
+                    # hit
+                    return 
+                else:
+                    tmp = criterion(torch.dist(iter.child_data, the_y), )
+                    iter.append(Node(the_label, the_y))
+                    self.size += 1
+                    return
+            iter = min_node 
+        
+         
+    
+        
 
 if __name__ == "__main__":
     input_size = 28 * 28
     num_classes = 10
     num_epochs = 10
-    batch_size = 100
+    batch_size = 1
     learning_rate = 1e-3
 
     train_dataset = dsets.MNIST(root='./mnist', train=True, transform=transforms.ToTensor(), download=True)
     test_dataset = dsets.MNIST(root='./mnist', train=False, transform=transforms.ToTensor(), download=True)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                               batch_size=batch_size,
+                                               batch_size=1,
                                                shuffle=True)
+
+
+
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
                                               batch_size=batch_size,
                                               shuffle=True)
@@ -42,22 +136,41 @@ if __name__ == "__main__":
 
     learning_rate = 1e-3
     num_epoches = 5
-    criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    for epoch in range(num_epoches):
-        for i, (images, labels) in enumerate(train_loader):
-            images = Variable(images.view(-1, 28 * 28))
-            labels = Variable(labels)
 
-            optimizer.zero_grad()
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+    for i, (images, labels) in enumerate(train_loader):
+        if i > 1000:
+            break
+        images = Variable(images.view(-1, 28 * 28))
+        # print(images.shape)
+        labels = Variable(labels)
 
-            if i % 100 == 0:
-                print('current loss = %.5f' % loss.data)
+        optimizer.zero_grad()
+        outputs = model.forward(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        if i % 100 == 0:
+            print('current loss = %.5f' % loss.data)
+
+    while True:
+        tree = Tree()
+        # construct tree
+        for i, (image, label) in enumerate(train_loader):
+            image = Variable(image.view(1, 28*28))
+            label = label.item() 
+            tree.insert(image, label, model)
+            if tree.size > 1000:
+                break
+    
+        # optimize tree 
+        for i, (image, label) in enumerate(train_loader):
+            image = Variable(image.view(1, 28*28))
+            label = label.item() 
+            tree.train(image, label, model)
+ 
+
 
     total = 0
     correct = 0

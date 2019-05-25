@@ -81,7 +81,9 @@ class Tree:
             iter = min_node 
 
     def train(self, the_data, the_label, net:Network):
-        loss = 0 
+        path = []
+        indexes = []
+        final_iter = None
         net.train(True)
         the_y = net.tree_forward(the_data)
         iter = self.root
@@ -89,24 +91,39 @@ class Tree:
         # print(min_value)
         while True: 
             min_node = iter
-            for child in iter.childs:
+            min_i = -1
+            for i in range(len(iter.childs)):
+                child = iter.childs[i]
                 value = torch.dist(the_y, child.out).item()
                 if value < min_value:
                     min_value = value
                     min_node = child
                     # print(min_value)
-
             if min_node == iter:
-                if iter.label == the_label:
-                    # hit
-                    return 
-                else:
-                    tmp = criterion(torch.dist(iter.child_data, the_y), )
-                    iter.append(Node(the_label, the_y))
-                    self.size += 1
-                    return
+                final_iter = iter
+                break 
+            path.append(iter)
+            indexes.append(i)
             iter = min_node 
-        
+
+        # final use multihot
+        # construct tensor 
+        loss = 0
+        mask = [the_label == child.label for child in final_iter.childs]
+        if len(mask) == 0:
+            pass
+        else:
+            mask = torch.tensor(mask, dtype=torch.float) 
+            mask = Variable(mask)
+            print(mask)
+            prob = torch.nn.Softmax(-1)(-torch.dist(final_iter.child_data, the_y))
+            print(prob)
+            loss = log(torch.dot(prob, mask))
+        for i in range(len(path)):
+            iter = path[i]
+            index = indexes[i]
+            loss = loss + nn.CrossEntropyLoss(-1)(-torch.dist(iter.child_data, the_y), index) 
+
          
     
         
@@ -169,7 +186,7 @@ if __name__ == "__main__":
             image = Variable(image.view(1, 28*28))
             label = label.item() 
             tree.train(image, label, model)
- 
+        
 
 
     total = 0

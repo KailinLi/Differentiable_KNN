@@ -1,5 +1,6 @@
 #!python
 import torch
+
 import torch.nn as nn
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
@@ -118,7 +119,7 @@ class Tree:
             print(mask)
             prob = torch.nn.Softmax(-1)(-torch.dist(final_iter.child_data, the_y))
             print(prob)
-            loss = log(torch.dot(prob, mask))
+            loss = torch.log(torch.dot(prob, mask))
         for i in range(len(path)):
             iter = path[i]
             index = indexes[i]

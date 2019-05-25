@@ -45,19 +45,19 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    # for epoch in range(num_epoches):
-    #     for i, (images, labels) in enumerate(train_loader):
-    #         images = Variable(images.view(-1, 28 * 28))
-    #         labels = Variable(labels)
+    for epoch in range(num_epoches):
+        for i, (images, labels) in enumerate(train_loader):
+            images = Variable(images.view(-1, 28 * 28))
+            labels = Variable(labels)
 
-    #         optimizer.zero_grad()
-    #         outputs = model(images)
-    #         loss = criterion(outputs, labels)
-    #         loss.backward()
-    #         optimizer.step()
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
-    #         if i % 100 == 0:
-    #             print('current loss = %.5f' % loss.data)
+            if i % 100 == 0:
+                print('current loss = %.5f' % loss.data)
 
     total = 0
     correct = 0
@@ -68,7 +68,8 @@ if __name__ == "__main__":
 
         _, predicts = torch.max(outputs.data, 1)
         total += labels.size(0)
-        correct += (predicts == labels).sum()
+        correct += (predicts == labels).sum().item()
 
     print(total)
-    print('Accuracy = %.2f' % (100 * correct / total))
+    print(correct)
+    print('Accuracy = %.2f' % ( 100.0 * correct / total))

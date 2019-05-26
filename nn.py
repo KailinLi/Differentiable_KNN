@@ -157,7 +157,7 @@ if __name__ == "__main__":
 
     learning_rate = 1e-4
     num_epoches = 5
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.90)
 
     # for i, (images, labels) in enumerate(train_loader):
     #     if i > 1000:
@@ -197,7 +197,7 @@ if __name__ == "__main__":
             loss, the_label = tree.train(image, label, model)
             total += 1
             acc += label == the_label
-            if loss: 
+            if loss and loss.data < 10: 
                 loss.backward(retain_graph=True)
                 optimizer.step()
                 vloss = loss.data

@@ -105,14 +105,14 @@ class Tree:
 
         the_y = net(the_data)
         net.train(True)
-        for parent, index in path[:-1]:
-            assert(index < len(parent.childs))
-            logits = -torch.dist(net(parent.raw), the_y).view(1)
-            for child in parent.childs:
-                dis = -torch.dist(net(child.raw), the_y)
-                logits = torch.cat((logits, dis.view(1)), 0)
-            loss = loss + criterion(logits.view(1, -1),
-                                    torch.LongTensor([index + 1]))
+        # for parent, index in path[:-1]:
+        #     assert(index < len(parent.childs))
+        #     logits = -torch.dist(net(parent.raw), the_y).view(1)
+        #     for child in parent.childs:
+        #         dis = -torch.dist(net(child.raw), the_y)
+        #         logits = torch.cat((logits, dis.view(1)), 0)
+        #     loss = loss + criterion(logits.view(1, -1),
+        #                             torch.LongTensor([index + 1]))
 
         loss = 0
         final_parent, _ = path[len(path) - 1]

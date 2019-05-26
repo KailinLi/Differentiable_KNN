@@ -13,8 +13,8 @@ class Network(nn.Module):
         self.fc1 = nn.Linear(input_num, hidden_size)
         self.relu1 = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size, hidden_size)
-        # self.relu2 = nn.ReLU()
-        # self.fc3 = nn.Linear(hidden_size, out_put)
+        self.relu2 = nn.ReLU()
+        self.fc3 = nn.Linear(hidden_size, out_put)
 
     def forward(self, x):
         out = self.tree_forward(x)
@@ -100,19 +100,19 @@ class Tree:
         assert(tail != None)
         if len(path) == 0:
             # too rare, don't care
-            return None
+            return None, tail.label
         loss = 0
 
         the_y = net(the_data)
         net.train(True)
-        # for parent, index in path[:-1]:
-        #     assert(index < len(parent.childs))
-        #     logits = -torch.dist(net(parent.raw), the_y).view(1)
-        #     for child in parent.childs:
-        #         dis = -torch.dist(net(child.raw), the_y)
-        #         logits = torch.cat((logits, dis.view(1)), 0)
-        #     loss = loss + criterion(logits.view(1, -1),
-        #                             torch.LongTensor([index + 1]))
+        for parent, index in path[:-1]:
+            assert(index < len(parent.childs))
+            logits = -torch.dist(net(parent.raw), the_y).view(1)
+            for child in parent.childs:
+                dis = -torch.dist(net(child.raw), the_y)
+                logits = torch.cat((logits, dis.view(1)), 0)
+            loss = loss + criterion(logits.view(1, -1),
+                                    torch.LongTensor([index + 1]))
 
         loss = 0
         final_parent, _ = path[len(path) - 1]
@@ -127,9 +127,9 @@ class Tree:
             dis = -torch.dist(net(child.raw), the_y)
             logits = torch.cat((logits, dis.view(1)), 0)
         prob = nn.Softmax(0)(logits)
-        loss = -torch.log(torch.dot(prob, mask))
+        loss = loss + -torch.log(torch.max(torch.dot(prob, mask), torch.Tensor([1e-10])))
 
-        return loss
+        return loss, tail.label
 
 
 if __name__ == "__main__":
@@ -151,11 +151,11 @@ if __name__ == "__main__":
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
                                               batch_size=batch_size,
                                               shuffle=True)
-    hidden_size = 100
+    hidden_size = 1000
 
-    model = Network(input_size, hidden_size, num_classes)
+    model = Network(input_size, hidden_size, 100)
 
-    learning_rate = 1e-6
+    learning_rate = 1e-4
     num_epoches = 5
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     #     optimizer.step()
     #     if i % 100 == 0:
     #         print('current loss = %.5f' % loss.data)
-
+    limit = 1000
     while True:
         tree = Tree()
         # construct tree
@@ -181,26 +181,30 @@ if __name__ == "__main__":
             image = Variable(image.view(1, 28*28))
             label = label.item()
             tree.insert(image, label, model)
-            print(tree.size)
-            if tree.size > 100:
+            print(tree.size, i)
+            if tree.size > 500:
                 break
 
         # # optimize tree
+        total = 0
+        acc = 0
         for i, (image, label) in enumerate(train_loader):
-            if i > 2:
+            if i > limit:
                 break
             optimizer.zero_grad()
             image = Variable(image.view(1, 28*28))
             label = label.item()
-            loss = tree.train(image, label, model)
+            loss, the_label = tree.train(image, label, model)
+            total += 1
+            acc += label == the_label
             if loss: 
                 loss.backward(retain_graph=True)
                 optimizer.step()
                 vloss = loss.data
-                print('cur loss = %.5f' % vloss)
+                print(i, 'cur loss = %.5f' % vloss, 'avg acc = %.5f%%' % (100.0 * acc / total))
             else: 
-                print('cur loss = SKIP')
-
+                print(i, 'cur loss = SKIP', 'avg acc = %.5f%%' % (100.0 * acc / total))
+        limit += 1000
     total = 0
     correct = 0
 

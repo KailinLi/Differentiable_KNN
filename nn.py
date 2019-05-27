@@ -12,14 +12,12 @@ class Network(nn.Module):
         super(Network, self).__init__()
         self.fc1 = nn.Linear(input_num, hidden_size)
         self.relu1 = nn.ReLU()
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.relu2 = nn.ReLU()
-        self.fc3 = nn.Linear(hidden_size, out_put)
+        self.fc2 = nn.Linear(hidden_size, out_put)
+        # self.relu2 = nn.ReLU()
+        # self.fc3 = nn.Linear(hidden_size, out_put)
 
     def forward(self, x):
         out = self.tree_forward(x)
-        # out = self.relu2(out)
-        # out = self.fc3(out)
         return out
 
     def tree_forward(self, x):
@@ -151,9 +149,9 @@ if __name__ == "__main__":
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
                                               batch_size=batch_size,
                                               shuffle=True)
-    hidden_size = 1000
+    hidden_size = 400
 
-    model = Network(input_size, hidden_size, 100)
+    model = Network(input_size, hidden_size, 20)
 
     learning_rate = 1e-4
     num_epoches = 5
@@ -182,7 +180,7 @@ if __name__ == "__main__":
             label = label.item()
             tree.insert(image, label, model)
             print(tree.size, i)
-            if tree.size > 500:
+            if i >= 1000:
                 break
 
         # # optimize tree
@@ -204,7 +202,7 @@ if __name__ == "__main__":
                 print(i, 'cur loss = %.5f' % vloss, 'avg acc = %.5f%%' % (100.0 * acc / total))
             else: 
                 print(i, 'cur loss = SKIP', 'avg acc = %.5f%%' % (100.0 * acc / total))
-        limit += 1000
+        # limit += 1000
     total = 0
     correct = 0
 

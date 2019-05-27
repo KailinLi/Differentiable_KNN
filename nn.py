@@ -172,6 +172,8 @@ if __name__ == "__main__":
     #     if i % 100 == 0:
     #         print('current loss = %.5f' % loss.data)
     limit = 1000
+    tree_size = 1
+    step = 1
     while True:
         tree = Tree()
         # construct tree
@@ -179,13 +181,16 @@ if __name__ == "__main__":
             image = Variable(image.view(1, 28*28))
             label = label.item()
             tree.insert(image, label, model)
-            print(tree.size, i)
+            # print(tree.size, i)
+            tree_size = tree.size
             if i >= 1000:
                 break
 
         # # optimize tree
         total = 0
         acc = 0
+        acc_sum = 0.0
+        acc_cnt = 0
         for i, (image, label) in enumerate(train_loader):
             if i > limit:
                 break
@@ -195,14 +200,19 @@ if __name__ == "__main__":
             loss, the_label = tree.train(image, label, model)
             total += 1
             acc += label == the_label
-            if loss and loss.data < 10: 
+            if loss and loss.data < 10:
                 loss.backward(retain_graph=True)
                 optimizer.step()
                 vloss = loss.data
-                print(i, 'cur loss = %.5f' % vloss, 'avg acc = %.5f%%' % (100.0 * acc / total))
-            else: 
-                print(i, 'cur loss = SKIP', 'avg acc = %.5f%%' % (100.0 * acc / total))
+                if i > 980:
+                    acc_sum += (100.0 * acc / total)
+                    acc_cnt += 1
+                # print(i, ' cur loss = %.5f ' % vloss, 'avg acc = %.5f%%' % (100.0 * acc / total))
+            # else:
+            #     print(i, ' cur loss = SKIP ', 'avg acc = %.5f%%' % (100.0 * acc / total))
         # limit += 1000
+        print(f'step:{step}, tree_size:{tree_size}, acc:{acc_sum / acc_cnt if acc_cnt != 0 else 100.0 * acc / total}')
+        step += 1
     total = 0
     correct = 0
 

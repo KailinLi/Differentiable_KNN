@@ -49,7 +49,7 @@ class Tree:
         self.size = 0
         self.root = None
 
-    def find_target(self, the_data: torch.Tensor, the_label: int, net: Network):
+    def find_target(self, the_data: torch.Tensor,  net: Network):
         path = []
         net.train(False)
         the_y = net(the_data)
@@ -80,7 +80,7 @@ class Tree:
     def insert(self, the_data: torch.Tensor, the_label: int, net: Network):
         # set net as test mode
         # assert(net.training == False)
-        _, tail = self.find_target(the_data, the_label, net)
+        _, tail = self.find_target(the_data, net)
         if tail == None:
             self.root = Node(the_label, the_data)
             self.size += 1
@@ -94,7 +94,7 @@ class Tree:
             return
 
     def train(self, the_data, the_label, net: Network):
-        path, tail = self.find_target(the_data, the_label, net)
+        path, tail = self.find_target(the_data, net)
         # final use multihot
         # construct tensor
         assert(tail != None)
@@ -182,16 +182,17 @@ if __name__ == "__main__":
             image = Variable(image.view(1, 28*28))
             label = label.item()
             tree.insert(image, label, model)
-            print(tree.size, i)
+            if i % 10 == 0:
+                print(tree.size, i)
             if tree.size > 500:
+                print(tree.size, i)
                 break
 
         # # optimize tree
         total = 0
         acc = 0
         for i, (image, label) in enumerate(train_loader):
-            if i > limit:
-                break
+
             optimizer.zero_grad()
             image = Variable(image.view(1, 28*28))
             label = label.item()
@@ -201,22 +202,25 @@ if __name__ == "__main__":
             if loss and loss.data < 10: 
                 loss.backward()
                 optimizer.step()
-                vloss = loss.data
-                print(i, 'cur loss = %.5f' % vloss, 'avg acc = %.5f%%' % (100.0 * acc / total))
-            else: 
-                print(i, 'cur loss = SKIP', 'avg acc = %.5f%%' % (100.0 * acc / total))
+            if i % 10 == 0 or i > limit:
+                if loss:
+                    loss = loss.item()
+                print(i, 'cur loss = ', loss, 'avg acc = %.5f%%' % (100.0 * acc / total))
+
+            if i > limit:
+                break
+        total = 0
+        correct = 0
+        for i, (image, label) in enumerate(test_loader):
+            image = Variable(image.view(1, 28*28))
+            label = label.item()
+            
+            _, iter = tree.find_target(image, model)
+            total += 1
+            correct += iter.label == label
+            if i % 10 == 0 or i > limit:
+                print('Accuracy = %.2f' % (100.0 * correct / total))
+            if i > limit:
+                break 
+
         limit += 1000
-    total = 0
-    correct = 0
-
-    # for images, labels in test_loader:
-    #     images = Variable(images.view(-1, 28 * 28))
-    #     outputs = model(images)
-
-    #     _, predicts = torch.max(outputs.data, 1)
-    #     total += labels.size(0)
-    #     correct += (predicts == labels).sum().item()
-
-    print(total)
-    print(correct)
-    # print('Accuracy = %.2f' % (100.0 * correct / total))

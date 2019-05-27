@@ -178,15 +178,18 @@ if __name__ == "__main__":
     while True:
         tree = Tree()
         # construct tree
+        last_size = -1
         for i, (image, label) in enumerate(train_loader):
             image = Variable(image.view(1, 28*28))
             label = label.item()
             tree.insert(image, label, model)
-            if tree.size % 10 == 0 or tree.size > 500:
-                print(tree.size, i)
+            if tree.size != last_size :
+                last_size = tree.size
+                if tree.size % 10 == 0 or tree.size > 500:
+                    print('(%d, %d)' % (tree.size, i))
             if tree.size > 500:
                 break
-
+        print('')
         # # optimize tree
         total = 0
         acc = 0

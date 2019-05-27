@@ -98,36 +98,33 @@ class Tree:
         # final use multihot
         # construct tensor
         assert(tail != None)
-        if len(path) == 0:
-            # too rare, don't care
-            return None, tail.label
         loss = 0
-
         the_y = net(the_data)
         net.train(True)
-        for parent, index in path[:-1]:
-            assert(index < len(parent.childs))
-            logits = -torch.dist(net(parent.raw), the_y).view(1)
-            for child in parent.childs:
-                dis = -torch.dist(net(child.raw), the_y)
-                logits = torch.cat((logits, dis.view(1)), 0)
-            loss = loss + criterion(logits.view(1, -1),
-                                    torch.LongTensor([index + 1]))
+        if len(path) == 0:
+            final_parent = tail
+        else:
+            final_parent, _ = path[len(path) - 1]
+            for parent, index in path[:-1]:
+                assert(index < len(parent.childs))
+                logits = -torch.dist(net(parent.raw), the_y).view(1)
+                for child in parent.childs:
+                    dis = -torch.dist(net(child.raw), the_y)
+                    logits = torch.cat((logits, dis.view(1)), 0)
+                loss = loss + criterion(logits.view(1, -1),
+                                        torch.LongTensor([index + 1]))
 
-        loss = 0
-        final_parent, _ = path[len(path) - 1]
         mask = [the_label == child.label for child in final_parent.childs]
         mask = [the_label == final_parent.label] + mask
-
         mask = torch.tensor(mask, dtype=torch.float)
         mask = Variable(mask)
-
+        
         logits = -torch.dist(net(final_parent.raw), the_y).view(1)
         for child in final_parent.childs:
             dis = -torch.dist(net(child.raw), the_y)
             logits = torch.cat((logits, dis.view(1)), 0)
         prob = nn.Softmax(0)(logits)
-        loss = loss + -torch.log(torch.max(torch.dot(prob, mask), torch.Tensor([1e-10])))
+        loss = loss + -torch.log(torch.max(torch.dot(prob, mask), torch.Tensor([1e-9])))
 
         return loss, tail.label
 
@@ -201,12 +198,11 @@ if __name__ == "__main__":
             loss, the_label = tree.train(image, label, model)
             total += 1
             acc += label == the_label
-            if loss and loss.data < 10: 
+            if loss.data < 10: 
                 loss.backward()
                 optimizer.step()
             if i % 10 == 0 or i > limit:
-                if loss:
-                    loss = loss.item()
+                loss = loss.item()
                 print(i, 'cur loss = ', loss, 'avg acc = %.5f%%' % (100.0 * acc / total))
 
             if i > limit:

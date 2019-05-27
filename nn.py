@@ -182,10 +182,9 @@ if __name__ == "__main__":
             image = Variable(image.view(1, 28*28))
             label = label.item()
             tree.insert(image, label, model)
-            if i % 10 == 0:
+            if tree.size % 10 == 0 or tree.size > 500:
                 print(tree.size, i)
             if tree.size > 500:
-                print(tree.size, i)
                 break
 
         # # optimize tree
